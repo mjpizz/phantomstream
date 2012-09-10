@@ -77,7 +77,7 @@ open = (options, bootstrap) ->
       phantomBinPath = path.resolve(PHANTOMJS_PATH, "phantomjs")
       phantomProcess = spawn(phantomBinPath, [info.path])
       phantomProcess.stderr.on "data", (data) ->
-        lines = data.toString.split()
+        lines = data.toString().split()
         for own line in lines
           logger.info?("[phantom-stderr]", line) unless /^\s*$/.test(line)
 
