@@ -12,7 +12,7 @@ First off, install the `phantomstream` module.
 Next, create a simple script named "myscript.js".
 
 ```javascript
-phantomstream = require("../phantomstream")
+phantomstream = require("phantomstream")
 
 // Open up a PhantomJS stream that listens for commands that look like
 // "TITLE <url>". Browse to the URL and write the title back via the stream.
