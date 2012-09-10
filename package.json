@@ -9,5 +9,8 @@
         "temp": "*",
         "coffee-script": "*"
     },
+    "directories": {
+      "ext": "./ext"
+    },
     "main": "./phantomstream"
 }
