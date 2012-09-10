@@ -12,9 +12,6 @@
         "adm-zip": "*",
         "coffee-script": "*"
     },
-    "directories": {
-      "ext": "./ext"
-    },
     "scripts": {
       "install": "./bin/extdownload"
     },
