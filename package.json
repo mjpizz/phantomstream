@@ -7,10 +7,16 @@
     "url": "https://github.com/mjpizz/phantomstream",
     "dependencies": {
         "temp": "*",
+        "request": "*",
+        "mkdirp": "*",
+        "adm-zip": "*",
         "coffee-script": "*"
     },
     "directories": {
       "ext": "./ext"
+    },
+    "scripts": {
+      "install": "./bin/extdownload"
     },
     "main": "./phantomstream"
 }

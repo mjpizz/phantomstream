@@ -4,8 +4,14 @@ http = require("http")
 spawn = require("child_process").spawn
 EventEmitter = require("events").EventEmitter
 temp = require("temp")
+platform = require("./platform")
 
-PHANTOMJS_PATH = path.resolve(__dirname, "../ext")
+PHANTOMJS_PLATFORM_PATHS =
+  macosx: path.resolve(__dirname, "../ext/macosx/bin/phantomjs")
+  windows: path.resolve(__dirname, "../ext/windows/phantomjs.exe")
+  linux32: path.resolve(__dirname, "../ext/linux32/bin/phantomjs")
+  linux64: path.resolve(__dirname, "../ext/linux64/bin/phantomjs")
+PHANTOMJS_PATH = PHANTOMJS_PLATFORM_PATHS[platform.get()]
 PHANTOMJS_SERVER_PORT = 9999
 
 getPhantomScript = (options) ->
@@ -74,8 +80,7 @@ open = (options, bootstrap) ->
         return
 
       # Start phantomjs with the phantomjs script we defined.
-      phantomBinPath = path.resolve(PHANTOMJS_PATH, "phantomjs")
-      phantomProcess = spawn(phantomBinPath, [info.path])
+      phantomProcess = spawn(PHANTOMJS_PATH, [info.path])
       phantomProcess.stderr.on "data", (data) ->
         lines = data.toString().split()
         for own line in lines

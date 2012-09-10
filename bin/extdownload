@@ -1,0 +1,93 @@
+#!/usr/bin/env node
+
+// This helper downloads the proper version of PhantomJS for the current
+// OS and architecture.
+require("coffee-script")
+fs = require("fs")
+path = require("path")
+temp = require("temp")
+mkdirp = require("mkdirp")
+AdmZip = require("adm-zip")
+request = require("request")
+platform = require("../lib/platform")
+
+var unzip = function(url, finalPath) {
+
+  // Create a tempfile for the download that will be cleaned up on exit.
+  temp.open({prefix: "phantomstream", suffix: ".zip"}, function (err, info) {
+    if (err) {
+      console.error(err)
+      return
+    }
+    fs.closeSync(info.fd)
+
+    // Download the URL into this temp file.
+    console.info("downloading", url, "to", info.path, "...")
+    var downloadStream = request(url)
+    var fileStream = fs.createWriteStream(info.path, {encoding: "utf8"})
+    downloadStream.pipe(fileStream)
+
+    // Once the download is complete, unzip it.
+    fileStream.on("error", function(err) {
+      console.error(err)
+    })
+    fileStream.on("close", function() {
+      console.info("finished downloading, unzipping...")
+      var zip = new AdmZip(info.path)
+      // This is a workaround for the fact that ADM-zip seems to have some
+      // issues doing `zip.extractAllTo(finalPath, true)`.
+      var baseDir = zip.getEntries()[0].entryName
+      zip.getEntries().forEach(function(entry) {
+        if (/(^[^\/]+\/(bin|lib)\/.+)|(\.exe$)/.test(entry.entryName)) {
+          var filePath = path.resolve(finalPath, entry.entryName.replace(baseDir, ""))
+          var dirPath = path.dirname(filePath)
+          mkdirp.sync(dirPath)
+          console.info("writing", path.basename(filePath), "to", dirPath)
+          console.warn("NOTE: ignore the CRC32 warnings, it is just due to a bug in adm-zip.")
+          fs.writeFileSync(filePath, zip.readFile(entry))
+        }
+      })
+      console.info("unzipped to", finalPath)
+    })
+
+  })
+}
+
+var downloaders = {
+
+  macosx: function() {
+    unzip(
+      "http://phantomjs.googlecode.com/files/phantomjs-1.6.1-macosx-static.zip",
+      path.resolve(__dirname, "../ext/macosx")
+    )
+  },
+
+  windows: function() {
+    unzip(
+      "http://phantomjs.googlecode.com/files/phantomjs-1.6.1-win32-static.zip",
+      path.resolve(__dirname, "../ext/windows")
+    )
+  },
+
+  // TODO: implement untarring for Linux builds
+  // linux32: function() {
+  //   unzip(
+  //     "http://phantomjs.googlecode.com/files/phantomjs-1.6.1-linux-i686-dynamic.tar.bz2",
+  //     path.resolve(__dirname, "../ext/linux32")
+  //   )
+  // },
+  // linux64: function() {
+  //   unzip(
+  //     "http://phantomjs.googlecode.com/files/phantomjs-1.6.1-linux-x86_64-dynamic.tar.bz2",
+  //     path.resolve(__dirname, "../ext/linux64")
+  //   )
+  // }
+}
+
+var download = downloaders[platform.get()]
+if (download) {
+  download()
+} else {
+  console.error("unable to determine the right version of PhantomJS to download")
+  process.exit(2)
+}
