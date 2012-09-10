@@ -63,8 +63,8 @@ Run your script with node.
     [phantom-stdout] sending title = Google
     node received: Google
 
-Enjoy! For more ideas on what you can do inside the callback in
-`phantomstream.open()` callback, read the
+Enjoy! For more ideas on what is possible inside the callback for
+`phantomstream.open()`, read the
 [PhantomJS documentation](http://code.google.com/p/phantomjs/wiki/Interface).
 
 Don't forget try out some demos from the `examples/` directory :)
