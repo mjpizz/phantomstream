@@ -55,7 +55,7 @@ ps.on("data", function(data) {
 
 Run your script with node.
 
-    node examples/title-viewer.js
+    node myscript.js
 
 ...you should see output like this:
 
