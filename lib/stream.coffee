@@ -31,10 +31,12 @@ getPhantomScript = (options) ->
       res.close()
 
     # Pass the stream to the bootstrap script.
+    # TODO: shadow all globals to force explicit use of window object
     bootstrap = new Function("(#{options.bootstrap}).apply({}, arguments)")
-    bootstrap(stream, require("webpage"))
+    bootstrap(stream, phantom, require, window)
 
-    # Indicate to node that the phantomjs process is ready.
+    # Indicate to node that the phantomjs process is ready by writing
+    # some data to it.
     stream.write("READY")
 
   # Serialize the options for `func`, which will be stringified and opened
@@ -46,15 +48,19 @@ getPhantomScript = (options) ->
       return value
   return "(#{func})(JSON.parse(#{JSON.stringify(optionsString)}))"
 
-create = (options, bootstrap) ->
-  logger = options?.logger or {}
+open = (options, bootstrap) ->
+  options or= {}
+  if typeof options is "function" and not bootstrap
+    bootstrap = options
+    options = {}
+  logger = options.logger or {}
   # TODO: just find an open port instead
-  phantomServerPort = options?.phantomServerPort or PHANTOMJS_SERVER_PORT
+  phantomServerPort = PHANTOMJS_SERVER_PORT
   stdoutDataPrefix = "DATA#{Math.random().toString().slice(2)}:"
   phantomOptions =
     port: phantomServerPort
     stdoutDataPrefix: stdoutDataPrefix
-    bootstrap: options?.bootstrap or bootstrap or options
+    bootstrap: bootstrap
 
   # Build a tempfile that contains our phantomjs script.
   temp.open {prefix: "phantomstream", suffix: ".js"}, (err, info) ->
@@ -132,6 +138,7 @@ create = (options, bootstrap) ->
     on: (event, callback)->
       if event is "data"
         emitter.on "data", (buffer) ->
+          # TODO: implement real encoding
           if encoding
             callback(buffer.toString())
           else
@@ -153,8 +160,10 @@ create = (options, bootstrap) ->
           performWrite()
   return stream
 
+exports.open = open
+
 if module is require.main
-  stream = create {logger: console}, (stream, webpage) ->
+  stream = open {logger: console}, (stream, webpage) ->
 
     # Right now, just echo back any data received to show that this is working.
     # TODO: use dnode?
