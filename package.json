@@ -1,0 +1,13 @@
+{
+    "name": "phantomstream",
+    "description": "Streaming interface to the PhantomJS headless browser",
+    "version": "0.0.1",
+    "author": "Matt Pizzimenti",
+    "email": "mjpizz@gmail.com",
+    "url": "https://github.com/mjpizz/phantomstream",
+    "dependencies": {
+        "temp": "*",
+        "coffee-script": "*"
+    },
+    "main": "./phantomstream"
+}
