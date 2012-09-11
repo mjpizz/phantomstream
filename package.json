@@ -8,8 +8,8 @@
     "dependencies": {
         "temp": "*",
         "request": "*",
-        "mkdirp": "*",
-        "adm-zip": "*",
+        "unzip": "*",
+        "rimraf": "*",
         "coffee-script": "*"
     },
     "scripts": {

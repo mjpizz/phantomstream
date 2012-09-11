@@ -5,50 +5,33 @@
 require("coffee-script")
 fs = require("fs")
 path = require("path")
-temp = require("temp")
-mkdirp = require("mkdirp")
-AdmZip = require("adm-zip")
+unzip = require("unzip")
+rimraf = require("rimraf")
 request = require("request")
 platform = require("../lib/platform")
 
-var unzip = function(url, finalPath) {
+var extract = function(url, finalPath, execPath) {
 
-  // Create a tempfile for the download that will be cleaned up on exit.
-  temp.open({prefix: "phantomstream", suffix: ".zip"}, function (err, info) {
-    if (err) {
-      console.error(err)
-      return
-    }
-    fs.closeSync(info.fd)
+  // Prepare a clean download directory.
+  var tempFinalPath = finalPath + "." + (+new Date())
+  fs.mkdirSync(tempFinalPath)
 
-    // Download the URL into this temp file.
-    console.info("downloading", url, "to", info.path, "...")
-    var downloadStream = request(url)
-    var fileStream = fs.createWriteStream(info.path, {encoding: "utf8"})
-    downloadStream.pipe(fileStream)
+  // Download and unzip into that directory.
+  console.info("downloading", url)
+  var downloadStream = request(url)
+  var directoryStream = unzip.Extract({path: tempFinalPath})
+  downloadStream.pipe(directoryStream)
+  directoryStream.on("close", function() {
+    var subDirs = fs.readdirSync(tempFinalPath)
+    var subPath = path.resolve(tempFinalPath, subDirs[0])
 
-    // Once the download is complete, unzip it.
-    fileStream.on("error", function(err) {
-      console.error(err)
-    })
-    fileStream.on("close", function() {
-      console.info("finished downloading, unzipping...")
-      var zip = new AdmZip(info.path)
-      // This is a workaround for the fact that ADM-zip seems to have some
-      // issues doing `zip.extractAllTo(finalPath, true)`.
-      var baseDir = zip.getEntries()[0].entryName
-      zip.getEntries().forEach(function(entry) {
-        if (/(^[^\/]+\/(bin|lib)\/.+)|(\.exe$)/.test(entry.entryName)) {
-          var filePath = path.resolve(finalPath, entry.entryName.replace(baseDir, ""))
-          var dirPath = path.dirname(filePath)
-          mkdirp.sync(dirPath)
-          console.info("writing", path.basename(filePath), "to", dirPath)
-          console.warn("NOTE: ignore the CRC32 warnings, it is just due to a bug in adm-zip.")
-          fs.writeFileSync(filePath, zip.readFile(entry))
-        }
-      })
-      console.info("unzipped to", finalPath)
-    })
+    // Rename the download to the desired final path.
+    console.info("download complete, renaming", subPath, "to", finalPath)
+    rimraf.sync(finalPath)
+    fs.renameSync(subPath, finalPath)
+    rimraf.sync(tempFinalPath)
+    fs.chmodSync(execPath, 0755)
+    console.info("unzipped to", finalPath)
 
   })
 }
@@ -56,32 +39,35 @@ var unzip = function(url, finalPath) {
 var downloaders = {
 
   macosx: function() {
-    unzip(
+    extract(
       "http://phantomjs.googlecode.com/files/phantomjs-1.6.1-macosx-static.zip",
-      path.resolve(__dirname, "../ext/macosx")
+      path.resolve(__dirname, "../ext/macosx"),
+      path.resolve(__dirname, "../ext/macosx/bin/phantomjs")
     )
   },
 
   windows: function() {
-    unzip(
+    extract(
       "http://phantomjs.googlecode.com/files/phantomjs-1.6.1-win32-static.zip",
-      path.resolve(__dirname, "../ext/windows")
+      path.resolve(__dirname, "../ext/windows"),
+      path.resolve(__dirname, "../ext/windows/phantomjs.exe")
     )
   },
 
   // TODO: implement untarring for Linux builds
   // linux32: function() {
-  //   unzip(
+  //   extract(
   //     "http://phantomjs.googlecode.com/files/phantomjs-1.6.1-linux-i686-dynamic.tar.bz2",
   //     path.resolve(__dirname, "../ext/linux32")
   //   )
   // },
   // linux64: function() {
-  //   unzip(
+  //   extract(
   //     "http://phantomjs.googlecode.com/files/phantomjs-1.6.1-linux-x86_64-dynamic.tar.bz2",
   //     path.resolve(__dirname, "../ext/linux64")
   //   )
   // }
+
 }
 
 var download = downloaders[platform.get()]
