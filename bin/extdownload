@@ -5,12 +5,27 @@
 require("coffee-script")
 fs = require("fs")
 path = require("path")
+spawn = require("child_process").spawn
+tar = require("tar")
 unzip = require("unzip")
 rimraf = require("rimraf")
 request = require("request")
 platform = require("../lib/platform")
 
 var extract = function(url, finalPath, execPath) {
+
+  // Set up a helper method that cleans up the directory after we download
+  // and unzip the archives.
+  var finish = function() {
+    var subDirs = fs.readdirSync(tempFinalPath)
+    var subPath = path.resolve(tempFinalPath, subDirs[0])
+    console.info("download complete, renaming", subPath, "to", finalPath)
+    rimraf.sync(finalPath)
+    fs.renameSync(subPath, finalPath)
+    rimraf.sync(tempFinalPath)
+    fs.chmodSync(execPath, 0755)
+    console.info("unzipped to", finalPath)
+  }
 
   // Prepare a clean download directory.
   var tempFinalPath = finalPath + "." + (+new Date())
@@ -19,21 +34,28 @@ var extract = function(url, finalPath, execPath) {
   // Download and unzip into that directory.
   console.info("downloading", url)
   var downloadStream = request(url)
-  var directoryStream = unzip.Extract({path: tempFinalPath})
-  downloadStream.pipe(directoryStream)
-  directoryStream.on("close", function() {
-    var subDirs = fs.readdirSync(tempFinalPath)
-    var subPath = path.resolve(tempFinalPath, subDirs[0])
+  var directoryStream
 
-    // Rename the download to the desired final path.
-    console.info("download complete, renaming", subPath, "to", finalPath)
-    rimraf.sync(finalPath)
-    fs.renameSync(subPath, finalPath)
-    rimraf.sync(tempFinalPath)
-    fs.chmodSync(execPath, 0755)
-    console.info("unzipped to", finalPath)
+  // Untar the tarballs.
+  if (/\.tar\.bz2$/.test(url)) {
+    var bunzip2 = spawn("bunzip2")
+    var tarInputStream = bunzip2.stdin
+    var tarOutputStream = bunzip2.stdout
+    directoryStream = tar.Extract({path: tempFinalPath})
+    downloadStream.pipe(tarInputStream)
+    tarOutputStream.pipe(directoryStream)
+    directoryStream.on("close", function() {
+      // We use nextTick to work around an issue where rimraf appears to
+      // still be holding on to a directory reference in this context.
+      process.nextTick(finish)
+    })
 
-  })
+  // Unzip the zipballs.
+  } else {
+    directoryStream = unzip.Extract({path: tempFinalPath})
+    downloadStream.pipe(directoryStream)
+    directoryStream.on("close", finish)
+  }
 }
 
 var downloaders = {
@@ -54,19 +76,20 @@ var downloaders = {
     )
   },
 
-  // TODO: implement untarring for Linux builds
-  // linux32: function() {
-  //   extract(
-  //     "http://phantomjs.googlecode.com/files/phantomjs-1.6.1-linux-i686-dynamic.tar.bz2",
-  //     path.resolve(__dirname, "../ext/linux32")
-  //   )
-  // },
-  // linux64: function() {
-  //   extract(
-  //     "http://phantomjs.googlecode.com/files/phantomjs-1.6.1-linux-x86_64-dynamic.tar.bz2",
-  //     path.resolve(__dirname, "../ext/linux64")
-  //   )
-  // }
+  linux32: function() {
+    extract(
+      "http://phantomjs.googlecode.com/files/phantomjs-1.6.1-linux-i686-dynamic.tar.bz2",
+      path.resolve(__dirname, "../ext/linux32"),
+      path.resolve(__dirname, "../ext/linux32/bin/phantomjs")
+    )
+  },
+  linux64: function() {
+    extract(
+      "http://phantomjs.googlecode.com/files/phantomjs-1.6.1-linux-x86_64-dynamic.tar.bz2",
+      path.resolve(__dirname, "../ext/linux64"),
+      path.resolve(__dirname, "../ext/linux64/bin/phantomjs")
+    )
+  }
 
 }
 

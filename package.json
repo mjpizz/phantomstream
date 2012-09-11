@@ -8,6 +8,7 @@
     "dependencies": {
         "temp": "*",
         "request": "*",
+        "tar": "*",
         "unzip": "*",
         "rimraf": "*",
         "coffee-script": "*"
