@@ -123,7 +123,7 @@ open = (options, bootstrap) ->
       cleanupAndExit = (err) ->
         if err
           logger.error?("[phantom-system] exiting due to error:", err)
-        if daemonExited
+        if phantomExited
           process.exit()
         else
           phantomProcess.on("exit", -> process.exit())
@@ -132,6 +132,18 @@ open = (options, bootstrap) ->
       process.on("uncaughtException", cleanupAndExit)
       process.on("SIGINT", cleanupAndExit)
       process.on("SIGTERM", cleanupAndExit)
+
+      # Watch for phantomjs exits.
+      # TODO: auto-restart?
+      phantomExited = false
+      phantomProcess.on "exit", (exitCode, signal) ->
+        phantomExited = true
+        if signal and exitCode isnt null and exitCode isnt 0
+          logger.error?("[phantom-system] exited with code #{exitCode} due to signal #{signal}")
+        else if signal
+          logger.error?("[phantom-system] exited due to signal #{signal}")
+        else if exitCode isnt 0
+          logger.error?("[phantom-system] exited with code #{exitCode}")
 
   # http://nodejs.org/api/stream.html#stream_readable_stream
   # TODO: implement other events
