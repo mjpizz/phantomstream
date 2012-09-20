@@ -23,7 +23,8 @@ getPhantomScript = (options) ->
     emit = (event) ->
       args = Array.prototype.slice.call(arguments, 1)
       (listeners[event] or []).forEach (listener) ->
-        listener.apply(listener, args)
+        setTimeout ->
+          listener.apply(listener, args)
     stream =
       write: (data) ->
         console.info("#{options.stdoutDataPrefix}#{JSON.stringify(data)}")
