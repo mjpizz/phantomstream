@@ -137,6 +137,12 @@ open = (options, bootstrap) ->
   readyForWriting = false
   encoding = null
   emitter = new EventEmitter()
+  writeQueue = []
+  waitingOnPreviousWrite = false
+  doNextWrite = ->
+    if writeQueue.length and not waitingOnPreviousWrite
+      waitingOnPreviousWrite = true
+      writeQueue.shift()()
   stream =
     readable: true
     writeable: true
@@ -151,18 +157,20 @@ open = (options, bootstrap) ->
     setEncoding: (e) ->
       encoding = e
     write: (data) ->
-      performWrite = ->
-        req = http.request({port: phantomServerPort, method: "POST"})
+      writeQueue.push ->
+        req = http.request {port: phantomServerPort, method: "POST"}, ->
+          waitingOnPreviousWrite = false
+          doNextWrite()
         req.on "error", (err) ->
           logger.error?(err)
         req.setHeader("Content-Length", data.length)
         req.end(data)
       if readyForWriting
-        performWrite()
+        doNextWrite()
       else
         emitter.on "ready", ->
           readyForWriting = true
-          performWrite()
+          doNextWrite()
   return stream
 
 exports.open = open
@@ -178,6 +186,7 @@ if module is require.main
 
   console.info("CLIENT: SEND: hello world")
   stream.write("hello world")
+  stream.write("hello world2")
   stream.setEncoding("utf-8")
   stream.on "data", (data) ->
     console.info("CLIENT: RECV: #{data}")
